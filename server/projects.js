@@ -68,6 +68,48 @@ import os from 'os';
 import sessionManager from './sessionManager.js';
 import { applyCustomSessionNames } from './database/db.js';
 
+// CCS PATCH: Discover CCS account instances from ~/.ccs/instances/
+async function getCcsAccounts() {
+  const instancesDir = path.join(os.homedir(), '.ccs', 'instances');
+  try {
+    const entries = await fs.readdir(instancesDir, { withFileTypes: true });
+    return entries
+      .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+      .map(e => ({
+        name: e.name,
+        projectsDir: path.join(instancesDir, e.name, 'projects')
+      }));
+  } catch {
+    return [];
+  }
+}
+
+// CCS PATCH: Extract actual project cwd from JSONL files in a CCS project directory.
+// Same logic as extractProjectDirectory but uses a configurable base dir.
+async function extractCcsProjectDirectory(projectName, ccsProjectsDir) {
+  const projectDir = path.join(ccsProjectsDir, projectName);
+  try {
+    await fs.access(projectDir);
+    const files = await fs.readdir(projectDir);
+    const jsonlFiles = files.filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'));
+    if (jsonlFiles.length === 0) return projectName.replace(/-/g, '/');
+
+    for (const file of jsonlFiles) {
+      const content = await fs.readFile(path.join(projectDir, file), 'utf8');
+      for (const line of content.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const entry = JSON.parse(line);
+          if (entry.cwd) return entry.cwd;
+        } catch { /* skip malformed lines */ }
+      }
+    }
+    return projectName.replace(/-/g, '/');
+  } catch {
+    return projectName.replace(/-/g, '/');
+  }
+}
+
 // Import TaskMaster detection functions
 async function detectTaskMasterFolder(projectPath) {
   try {
@@ -629,6 +671,57 @@ async function getProjects(progressCallback = null) {
     }
   }
 
+  // CCS PATCH: Scan each CCS account's projects directory and merge in its projects
+  const ccsAccounts = await getCcsAccounts();
+  for (const { name: accountName, projectsDir } of ccsAccounts) {
+    try {
+      await fs.access(projectsDir);
+      const ccsEntries = await fs.readdir(projectsDir, { withFileTypes: true });
+      const ccsDirs = ccsEntries.filter(e => e.isDirectory());
+
+      for (const entry of ccsDirs) {
+        // Skip if this encoded project name already exists in ~/.claude/projects/ to avoid duplicates
+        if (existingProjects.has(entry.name)) continue;
+
+        const actualProjectDir = await extractCcsProjectDirectory(entry.name, projectsDir);
+        const autoDisplayName = await generateDisplayName(entry.name, actualProjectDir);
+
+        const project = {
+          name: entry.name,
+          path: actualProjectDir,
+          displayName: `[${accountName}] ${autoDisplayName}`,
+          fullPath: actualProjectDir,
+          isCustomName: false,
+          ccsAccount: accountName,
+          ccsProjectsDir: projectsDir,
+          sessions: [],
+          geminiSessions: [],
+          sessionMeta: { hasMore: false, total: 0 },
+          cursorSessions: [],
+          codexSessions: []
+        };
+
+        try {
+          const sessionResult = await getSessions(entry.name, 5, 0, projectsDir);
+          project.sessions = sessionResult.sessions || [];
+          project.sessionMeta = {
+            hasMore: sessionResult.hasMore,
+            total: sessionResult.total
+          };
+        } catch (e) {
+          console.warn(`[CCS] Could not load sessions for ${accountName}/${entry.name}:`, e.message);
+        }
+        applyCustomSessionNames(project.sessions, 'claude');
+
+        projects.push(project);
+      }
+    } catch (e) {
+      if (e.code !== 'ENOENT') {
+        console.warn(`[CCS] Could not scan account ${accountName}:`, e.message);
+      }
+    }
+  }
+
   // Emit completion after all projects (including manual) are processed
   if (progressCallback) {
     progressCallback({
@@ -641,8 +734,11 @@ async function getProjects(progressCallback = null) {
   return projects;
 }
 
-async function getSessions(projectName, limit = 5, offset = 0) {
-  const projectDir = path.join(os.homedir(), '.claude', 'projects', projectName);
+async function getSessions(projectName, limit = 5, offset = 0, baseDir = null) {
+  // CCS PATCH: support custom base directory for CCS account project directories
+  const projectDir = baseDir
+    ? path.join(baseDir, projectName)
+    : path.join(os.homedir(), '.claude', 'projects', projectName);
 
   try {
     const files = await fs.readdir(projectDir);

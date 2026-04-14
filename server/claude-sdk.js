@@ -588,6 +588,14 @@ async function queryClaudeSDK(command, options = {}, ws) {
       return { behavior: 'deny', message: decision.message ?? 'User denied tool use' };
     };
 
+    // CCS PATCH: Point CLAUDE_CONFIG_DIR at the correct CCS account so the SDK
+    // query reads from the right isolated config/session store.
+    const prevConfigDir = process.env.CLAUDE_CONFIG_DIR;
+    if (options.ccsAccount) {
+      process.env.CLAUDE_CONFIG_DIR = path.join(os.homedir(), '.ccs', 'instances', options.ccsAccount);
+      console.log(`[CCS] Setting CLAUDE_CONFIG_DIR for account: ${options.ccsAccount}`);
+    }
+
     // Set stream-close timeout for interactive tools (Query constructor reads it synchronously). Claude Agent SDK has a default of 5s and this overrides it
     const prevStreamTimeout = process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT;
     process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT = '300000';
@@ -614,6 +622,15 @@ async function queryClaudeSDK(command, options = {}, ws) {
       process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT = prevStreamTimeout;
     } else {
       delete process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT;
+    }
+
+    // CCS PATCH: Restore CLAUDE_CONFIG_DIR
+    if (options.ccsAccount) {
+      if (prevConfigDir !== undefined) {
+        process.env.CLAUDE_CONFIG_DIR = prevConfigDir;
+      } else {
+        delete process.env.CLAUDE_CONFIG_DIR;
+      }
     }
 
     // Track the query instance for abort capability

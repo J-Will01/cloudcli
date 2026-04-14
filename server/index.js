@@ -99,6 +99,23 @@ let projectsWatcherDebounceTimer = null;
 const connectedClients = new Set();
 let isGetProjectsRunning = false; // Flag to prevent reentrant calls
 
+// CCS PATCH: Maps populated whenever getProjects() runs
+// projectName (encoded folder) -> { accountName, projectsDir }
+const ccsProjectMap = new Map();
+// actual cwd path -> accountName  (for resolving account during session launch)
+const ccsCwdMap = new Map();
+
+function updateCcsProjectMap(projects) {
+  ccsProjectMap.clear();
+  ccsCwdMap.clear();
+  for (const p of projects) {
+    if (p.ccsAccount) {
+      ccsProjectMap.set(p.name, { accountName: p.ccsAccount, projectsDir: p.ccsProjectsDir });
+      if (p.fullPath) ccsCwdMap.set(p.fullPath, p.ccsAccount);
+    }
+  }
+}
+
 // Broadcast progress to all connected WebSocket clients
 function broadcastProgress(progress) {
     const message = JSON.stringify({
@@ -151,6 +168,7 @@ async function setupProjectsWatcher() {
 
                 // Get updated projects list
                 const updatedProjects = await getProjects(broadcastProgress);
+                updateCcsProjectMap(updatedProjects); // CCS PATCH
 
                 // Notify all connected clients about the project changes
                 const updateMessage = JSON.stringify({
@@ -216,6 +234,39 @@ async function setupProjectsWatcher() {
 
     if (projectsWatchers.length === 0) {
         console.error('[ERROR] Failed to setup any provider watchers');
+    }
+
+    // CCS PATCH: Also watch each CCS account's projects directory
+    try {
+        const ccsInstancesDir = path.join(os.homedir(), '.ccs', 'instances');
+        const ccsEntries = await fsPromises.readdir(ccsInstancesDir, { withFileTypes: true });
+        for (const entry of ccsEntries.filter(e => e.isDirectory() && !e.name.startsWith('.'))) {
+            const ccsProjectsDir = path.join(ccsInstancesDir, entry.name, 'projects');
+            try {
+                await fsPromises.mkdir(ccsProjectsDir, { recursive: true });
+                const watcher = chokidar.watch(ccsProjectsDir, {
+                    ignored: WATCHER_IGNORED_PATTERNS,
+                    persistent: true,
+                    ignoreInitial: true,
+                    followSymlinks: false,
+                    depth: 10,
+                    awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 }
+                });
+                watcher
+                    .on('add', (filePath) => debouncedUpdate('add', filePath, `ccs-${entry.name}`, ccsProjectsDir))
+                    .on('change', (filePath) => debouncedUpdate('change', filePath, `ccs-${entry.name}`, ccsProjectsDir))
+                    .on('unlink', (filePath) => debouncedUpdate('unlink', filePath, `ccs-${entry.name}`, ccsProjectsDir))
+                    .on('addDir', (dirPath) => debouncedUpdate('addDir', dirPath, `ccs-${entry.name}`, ccsProjectsDir))
+                    .on('unlinkDir', (dirPath) => debouncedUpdate('unlinkDir', dirPath, `ccs-${entry.name}`, ccsProjectsDir))
+                    .on('error', (error) => console.error(`[ERROR] CCS ${entry.name} watcher error:`, error));
+                projectsWatchers.push(watcher);
+                console.log(`[CCS] Watching ${entry.name} projects at ${ccsProjectsDir}`);
+            } catch (error) {
+                console.error(`[ERROR] Failed to setup CCS watcher for ${entry.name}:`, error);
+            }
+        }
+    } catch (e) {
+        if (e.code !== 'ENOENT') console.warn('[CCS] Could not setup account watchers:', e.message);
     }
 }
 
@@ -504,6 +555,7 @@ app.post('/api/system/update', authenticateToken, async (req, res) => {
 app.get('/api/projects', authenticateToken, async (req, res) => {
     try {
         const projects = await getProjects(broadcastProgress);
+        updateCcsProjectMap(projects); // CCS PATCH
         res.json(projects);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -513,7 +565,9 @@ app.get('/api/projects', authenticateToken, async (req, res) => {
 app.get('/api/projects/:projectName/sessions', authenticateToken, async (req, res) => {
     try {
         const { limit = 5, offset = 0 } = req.query;
-        const result = await getSessions(req.params.projectName, parseInt(limit), parseInt(offset));
+        // CCS PATCH: if this project belongs to a CCS account, read from its directory
+        const ccsMeta = ccsProjectMap.get(req.params.projectName);
+        const result = await getSessions(req.params.projectName, parseInt(limit), parseInt(offset), ccsMeta?.projectsDir ?? null);
         applyCustomSessionNames(result.sessions, 'claude');
         res.json(result);
     } catch (error) {
@@ -1504,8 +1558,19 @@ function handleChatConnection(ws, request) {
                 console.log('📁 Project:', data.options?.projectPath || 'Unknown');
                 console.log('🔄 Session:', data.options?.sessionId ? 'Resume' : 'New');
 
+                // CCS PATCH: resolve which CCS account owns this project's cwd
+                const resolvedCcsAccount = data.options?.cwd
+                    ? ccsCwdMap.get(data.options.cwd)
+                    : undefined;
+                const claudeOptions = resolvedCcsAccount
+                    ? { ...data.options, ccsAccount: resolvedCcsAccount }
+                    : data.options;
+                if (resolvedCcsAccount) {
+                    console.log(`[CCS] Routing session to account: ${resolvedCcsAccount}`);
+                }
+
                 // Use Claude Agents SDK
-                await queryClaudeSDK(data.command, data.options, writer);
+                await queryClaudeSDK(data.command, claudeOptions, writer);
             } else if (data.type === 'cursor-command') {
                 console.log('[DEBUG] Cursor message:', data.command || '[Continue/Resume]');
                 console.log('📁 Project:', data.options?.cwd || 'Unknown');
@@ -2416,6 +2481,16 @@ async function startServer() {
 
             // Start watching the projects folder for changes
             await setupProjectsWatcher();
+
+            // CCS PATCH: Eagerly populate CCS account maps at startup so that
+            // claude-command WebSocket messages arriving before /api/projects is
+            // fetched by the client still route to the correct CCS account.
+            try {
+                const initialProjects = await getProjects();
+                updateCcsProjectMap(initialProjects);
+            } catch (e) {
+                console.warn('[CCS] Could not pre-populate account maps at startup:', e.message);
+            }
 
             // Start server-side plugin processes for enabled plugins
             startEnabledPluginServers().catch(err => {
