@@ -109,9 +109,19 @@ function updateCcsProjectMap(projects) {
   ccsProjectMap.clear();
   ccsCwdMap.clear();
   for (const p of projects) {
-    if (p.ccsAccount) {
-      ccsProjectMap.set(p.name, { accountName: p.ccsAccount, projectsDir: p.ccsProjectsDir });
-      // CCS PATCH: normalize with path.resolve() so trailing-slash / symlink variants still match
+    // CCS PATCH: support both merged (ccsAccounts array) and legacy (ccsAccount string) formats
+    if (p.ccsAccounts?.length) {
+      ccsProjectMap.set(p.name, p.ccsAccounts); // array of { accountName, projectsDir, profile }
+      // For new-session routing: use the account whose most recent session is newest
+      const primaryAccount = p.ccsAccounts.reduce((best, acct) => {
+        const bestTime = best ? new Date(p.sessions?.find(s => s.profile?.id === best.accountName)?.lastActivity || 0) : new Date(0);
+        const acctTime = new Date(p.sessions?.find(s => s.profile?.id === acct.accountName)?.lastActivity || 0);
+        return acctTime > bestTime ? acct : best;
+      }, p.ccsAccounts[0]);
+      if (p.fullPath) ccsCwdMap.set(path.resolve(p.fullPath), primaryAccount.accountName);
+    } else if (p.ccsAccount) {
+      // Legacy single-account format
+      ccsProjectMap.set(p.name, [{ accountName: p.ccsAccount, projectsDir: p.ccsProjectsDir }]);
       if (p.fullPath) ccsCwdMap.set(path.resolve(p.fullPath), p.ccsAccount);
     }
   }
@@ -566,11 +576,34 @@ app.get('/api/projects', authenticateToken, async (req, res) => {
 app.get('/api/projects/:projectName/sessions', authenticateToken, async (req, res) => {
     try {
         const { limit = 5, offset = 0 } = req.query;
-        // CCS PATCH: if this project belongs to a CCS account, read from its directory
-        const ccsMeta = ccsProjectMap.get(req.params.projectName);
-        const result = await getSessions(req.params.projectName, parseInt(limit), parseInt(offset), ccsMeta?.projectsDir ?? null);
-        applyCustomSessionNames(result.sessions, 'claude');
-        res.json(result);
+        const lim = parseInt(limit);
+        const off = parseInt(offset);
+
+        // CCS PATCH: fetch from all CCS accounts for this project and merge
+        const ccsMetaList = ccsProjectMap.get(req.params.projectName);
+        if (ccsMetaList?.length) {
+            // Fetch all sessions from each account (large batch; we paginate in memory)
+            const allResults = await Promise.all(
+                ccsMetaList.map(m => getSessions(req.params.projectName, 200, 0, m.projectsDir, m.profile))
+            );
+            // Deduplicate by session id across accounts, sort newest first
+            const seen = new Set();
+            const merged = [];
+            for (const r of allResults) {
+                for (const s of (r.sessions || [])) {
+                    if (!seen.has(s.id)) { seen.add(s.id); merged.push(s); }
+                }
+            }
+            merged.sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+            applyCustomSessionNames(merged, 'claude');
+            const total = merged.length;
+            const paginated = merged.slice(off, off + lim);
+            res.json({ sessions: paginated, hasMore: off + lim < total, total, offset: off, limit: lim });
+        } else {
+            const result = await getSessions(req.params.projectName, lim, off);
+            applyCustomSessionNames(result.sessions, 'claude');
+            res.json(result);
+        }
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

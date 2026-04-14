@@ -14,6 +14,7 @@ export interface ProjectSession {
   messageCount?: number;
   __provider?: SessionProvider;
   __projectName?: string;
+  profile?: CcsProfile;
   [key: string]: unknown;
 }
 
@@ -36,12 +37,19 @@ export interface CcsProfile {
   color: string | null;
 }
 
+export interface CcsAccountRef {
+  accountName: string;
+  projectsDir: string;
+  profile: CcsProfile;
+}
+
 export interface Project {
   name: string;
   displayName: string;
   fullPath: string;
   path?: string;
   profile?: CcsProfile;
+  ccsAccounts?: CcsAccountRef[];
   sessions?: ProjectSession[];
   cursorSessions?: ProjectSession[];
   codexSessions?: ProjectSession[];

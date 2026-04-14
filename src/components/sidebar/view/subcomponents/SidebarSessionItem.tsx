@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import { Badge, Button } from '../../../../shared/view/ui';
 import { cn } from '../../../../lib/utils';
 import { formatTimeAgo } from '../../../../utils/dateUtils';
-import type { Project, ProjectSession, SessionProvider } from '../../../../types/app';
+import type { Project, ProjectSession, SessionProvider, CcsProfile } from '../../../../types/app';
 import type { SessionWithProvider } from '../../types/types';
 import { createSessionViewModel } from '../../utils/utils';
 import SessionProviderLogo from '../../../llm-logo-provider/SessionProviderLogo';
@@ -48,6 +48,9 @@ export default function SidebarSessionItem({
 }: SidebarSessionItemProps) {
   const sessionView = createSessionViewModel(session, currentTime, t);
   const isSelected = selectedSession?.id === session.id;
+  // CCS: prefer session-level profile (set when session comes from a CCS account),
+  // fall back to project-level profile for single-account projects
+  const sessionProfile = (session.profile as CcsProfile | undefined) ?? project.profile;
 
   const selectMobileSession = () => {
     onProjectSelect(project);
@@ -91,10 +94,10 @@ export default function SidebarSessionItem({
               >
                 <SessionProviderLogo provider={session.__provider} className="h-3 w-3" />
               </div>
-              {project.profile?.color && (
+              {sessionProfile?.color && (
                 <div
                   className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-background"
-                  style={{ backgroundColor: project.profile.color }}
+                  style={{ backgroundColor: sessionProfile.color }}
                 />
               )}
             </div>
@@ -144,10 +147,10 @@ export default function SidebarSessionItem({
           <div className="flex w-full min-w-0 items-start gap-2">
             <div className="relative mt-0.5 h-3 w-3 flex-shrink-0">
               <SessionProviderLogo provider={session.__provider} className="h-3 w-3" />
-              {project.profile?.color && (
+              {sessionProfile?.color && (
                 <div
                   className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-background"
-                  style={{ backgroundColor: project.profile.color }}
+                  style={{ backgroundColor: sessionProfile.color }}
                 />
               )}
             </div>

@@ -96,6 +96,9 @@ export default function SidebarProjectItem({
   const isSelected = selectedProject?.name === project.name;
   const isEditing = editingProject === project.name;
   const hasMoreSessions = project.sessionMeta?.hasMore === true;
+  // CCS: collect unique profile colors to show on the folder icon
+  // Prefer ccsAccounts (merged multi-account) over legacy single profile field
+  const ccsProfiles = project.ccsAccounts?.map(a => a.profile).filter(p => p?.color) ?? (project.profile?.color ? [project.profile] : []);
   const sessionCountDisplay = getSessionCountDisplay(sessions, hasMoreSessions);
   const sessionCountLabel = `${sessionCountDisplay} session${sessions.length === 1 ? '' : 's'}`;
   const taskStatus = getTaskIndicatorStatus(project, mcpServerStatus);
@@ -142,12 +145,17 @@ export default function SidebarProjectItem({
                   ) : (
                     <Folder className="h-4 w-4 text-muted-foreground" />
                   )}
-                  {project.profile?.color && (
-                    <div
-                      className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-1 ring-background"
-                      style={{ backgroundColor: project.profile.color }}
-                      title={project.profile.displayName}
-                    />
+                  {ccsProfiles.length > 0 && (
+                    <div className="absolute -bottom-0.5 -right-0.5 flex gap-0.5">
+                      {ccsProfiles.slice(0, 3).map(p => (
+                        <div
+                          key={p.id}
+                          className="h-2.5 w-2.5 rounded-full ring-1 ring-background"
+                          style={{ backgroundColor: p.color! }}
+                          title={p.displayName}
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
 
@@ -294,12 +302,17 @@ export default function SidebarProjectItem({
               ) : (
                 <Folder className="h-4 w-4 text-muted-foreground" />
               )}
-              {project.profile?.color && (
-                <div
-                  className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-1 ring-background"
-                  style={{ backgroundColor: project.profile.color }}
-                  title={project.profile.displayName}
-                />
+              {ccsProfiles.length > 0 && (
+                <div className="absolute -bottom-0.5 -right-0.5 flex gap-0.5">
+                  {ccsProfiles.slice(0, 3).map(p => (
+                    <div
+                      key={p.id}
+                      className="h-2 w-2 rounded-full ring-1 ring-background"
+                      style={{ backgroundColor: p.color! }}
+                      title={p.displayName}
+                    />
+                  ))}
+                </div>
               )}
             </div>
             <div className="min-w-0 flex-1 text-left">

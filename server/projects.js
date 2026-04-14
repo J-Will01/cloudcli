@@ -681,6 +681,16 @@ async function getProjects(progressCallback = null) {
     }
   }
 
+  // CCS PATCH: Build fullPath index over all projects collected so far so we can
+  // merge CCS account sessions into existing entries instead of creating duplicates.
+  // Key: path.resolve(fullPath) → index in projects array
+  const fullPathMap = new Map();
+  for (let i = 0; i < projects.length; i++) {
+    if (projects[i].fullPath) {
+      fullPathMap.set(path.resolve(projects[i].fullPath), i);
+    }
+  }
+
   // CCS PATCH: Scan each CCS account's projects directory and merge in its projects
   const ccsAccounts = await getCcsAccounts();
   const ccsProfilesSaved = await readCcsProfilesJson();
@@ -698,41 +708,74 @@ async function getProjects(progressCallback = null) {
       const ccsDirs = ccsEntries.filter(e => e.isDirectory());
 
       for (const entry of ccsDirs) {
-        // Skip if this encoded project name already exists in ~/.claude/projects/ to avoid duplicates
-        if (existingProjects.has(entry.name)) continue;
-
         const actualProjectDir = await extractCcsProjectDirectory(entry.name, projectsDir);
-        const autoDisplayName = await generateDisplayName(entry.name, actualProjectDir);
+        const resolvedPath = path.resolve(actualProjectDir);
 
-        const project = {
-          name: entry.name,
-          path: actualProjectDir,
-          displayName: autoDisplayName,
-          fullPath: actualProjectDir,
-          isCustomName: false,
-          ccsAccount: accountName,
-          ccsProjectsDir: projectsDir,
-          profile: profileObj,
-          sessions: [],
-          geminiSessions: [],
-          sessionMeta: { hasMore: false, total: 0 },
-          cursorSessions: [],
-          codexSessions: []
-        };
+        if (fullPathMap.has(resolvedPath)) {
+          // CCS PATCH: Project already exists (same directory) — merge sessions in
+          const existing = projects[fullPathMap.get(resolvedPath)];
 
-        try {
-          const sessionResult = await getSessions(entry.name, 5, 0, projectsDir);
-          project.sessions = sessionResult.sessions || [];
-          project.sessionMeta = {
-            hasMore: sessionResult.hasMore,
-            total: sessionResult.total
+          // Fetch sessions from this CCS account, tagged with its profile
+          let ccsSessions = [];
+          try {
+            const sessionResult = await getSessions(entry.name, 5, 0, projectsDir, profileObj);
+            ccsSessions = sessionResult.sessions || [];
+            applyCustomSessionNames(ccsSessions, 'claude');
+          } catch (e) {
+            console.warn(`[CCS] Could not load sessions for ${accountName}/${entry.name}:`, e.message);
+          }
+
+          // Merge sessions: combine, deduplicate by id, sort newest first, keep top 5
+          const merged = [...(existing.sessions || []), ...ccsSessions];
+          const seen = new Set();
+          const deduped = merged.filter(s => {
+            if (seen.has(s.id)) return false;
+            seen.add(s.id);
+            return true;
+          });
+          deduped.sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+          existing.sessions = deduped.slice(0, 5);
+          existing.sessionMeta = {
+            hasMore: deduped.length > 5,
+            total: deduped.length
           };
-        } catch (e) {
-          console.warn(`[CCS] Could not load sessions for ${accountName}/${entry.name}:`, e.message);
-        }
-        applyCustomSessionNames(project.sessions, 'claude');
 
-        projects.push(project);
+          // Track all CCS accounts that have sessions in this project directory
+          if (!existing.ccsAccounts) existing.ccsAccounts = [];
+          existing.ccsAccounts.push({ accountName, projectsDir, profile: profileObj });
+
+        } else {
+          // New project — create entry with this account's profile
+          const autoDisplayName = await generateDisplayName(entry.name, actualProjectDir);
+          const project = {
+            name: entry.name,
+            path: actualProjectDir,
+            displayName: autoDisplayName,
+            fullPath: actualProjectDir,
+            isCustomName: false,
+            ccsAccounts: [{ accountName, projectsDir, profile: profileObj }],
+            sessions: [],
+            geminiSessions: [],
+            sessionMeta: { hasMore: false, total: 0 },
+            cursorSessions: [],
+            codexSessions: []
+          };
+
+          try {
+            const sessionResult = await getSessions(entry.name, 5, 0, projectsDir, profileObj);
+            project.sessions = sessionResult.sessions || [];
+            project.sessionMeta = {
+              hasMore: sessionResult.hasMore,
+              total: sessionResult.total
+            };
+          } catch (e) {
+            console.warn(`[CCS] Could not load sessions for ${accountName}/${entry.name}:`, e.message);
+          }
+          applyCustomSessionNames(project.sessions, 'claude');
+
+          fullPathMap.set(resolvedPath, projects.length);
+          projects.push(project);
+        }
       }
     } catch (e) {
       if (e.code !== 'ENOENT') {
@@ -753,7 +796,7 @@ async function getProjects(progressCallback = null) {
   return projects;
 }
 
-async function getSessions(projectName, limit = 5, offset = 0, baseDir = null) {
+async function getSessions(projectName, limit = 5, offset = 0, baseDir = null, profile = null) {
   // CCS PATCH: support custom base directory for CCS account project directories
   const projectDir = baseDir
     ? path.join(baseDir, projectName)
@@ -871,8 +914,13 @@ async function getSessions(projectName, limit = 5, offset = 0, baseDir = null) {
     const paginatedSessions = visibleSessions.slice(offset, offset + limit);
     const hasMore = offset + limit < total;
 
+    // CCS PATCH: tag each session with the source account profile when provided
+    const taggedSessions = profile
+      ? paginatedSessions.map(s => ({ ...s, profile }))
+      : paginatedSessions;
+
     return {
-      sessions: paginatedSessions,
+      sessions: taggedSessions,
       hasMore,
       total,
       offset,
