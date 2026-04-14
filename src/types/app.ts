@@ -30,11 +30,18 @@ export interface ProjectTaskmasterInfo {
   [key: string]: unknown;
 }
 
+export interface CcsProfile {
+  id: string;
+  displayName: string;
+  color: string | null;
+}
+
 export interface Project {
   name: string;
   displayName: string;
   fullPath: string;
   path?: string;
+  profile?: CcsProfile;
   sessions?: ProjectSession[];
   cursorSessions?: ProjectSession[];
   codexSessions?: ProjectSession[];

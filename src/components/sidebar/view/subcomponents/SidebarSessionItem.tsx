@@ -82,13 +82,21 @@ export default function SidebarSessionItem({
           onClick={selectMobileSession}
         >
           <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                'w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0',
-                isSelected ? 'bg-primary/10' : 'bg-muted/50',
+            <div className="relative flex-shrink-0">
+              <div
+                className={cn(
+                  'w-5 h-5 rounded-md flex items-center justify-center',
+                  isSelected ? 'bg-primary/10' : 'bg-muted/50',
+                )}
+              >
+                <SessionProviderLogo provider={session.__provider} className="h-3 w-3" />
+              </div>
+              {project.profile?.color && (
+                <div
+                  className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-background"
+                  style={{ backgroundColor: project.profile.color }}
+                />
               )}
-            >
-              <SessionProviderLogo provider={session.__provider} className="h-3 w-3" />
             </div>
 
             <div className="min-w-0 flex-1">
@@ -134,7 +142,15 @@ export default function SidebarSessionItem({
           onClick={() => onSessionSelect(session, project.name)}
         >
           <div className="flex w-full min-w-0 items-start gap-2">
-            <SessionProviderLogo provider={session.__provider} className="mt-0.5 h-3 w-3 flex-shrink-0" />
+            <div className="relative mt-0.5 flex-shrink-0">
+              <SessionProviderLogo provider={session.__provider} className="h-3 w-3" />
+              {project.profile?.color && (
+                <div
+                  className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-background"
+                  style={{ backgroundColor: project.profile.color }}
+                />
+              )}
+            </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-medium text-foreground">{sessionView.sessionName}</div>
               <div className="mt-0.5 flex items-center gap-1">

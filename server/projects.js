@@ -68,6 +68,16 @@ import os from 'os';
 import sessionManager from './sessionManager.js';
 import { applyCustomSessionNames } from './database/db.js';
 
+// CCS PATCH: Read saved profile metadata from ~/.cloudcli/ccs-profiles.json
+async function readCcsProfilesJson() {
+  try {
+    const p = path.join(os.homedir(), '.cloudcli', 'ccs-profiles.json');
+    return JSON.parse(await fs.readFile(p, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
 // CCS PATCH: Discover CCS account instances from ~/.ccs/instances/
 async function getCcsAccounts() {
   const instancesDir = path.join(os.homedir(), '.ccs', 'instances');
@@ -673,7 +683,15 @@ async function getProjects(progressCallback = null) {
 
   // CCS PATCH: Scan each CCS account's projects directory and merge in its projects
   const ccsAccounts = await getCcsAccounts();
+  const ccsProfilesSaved = await readCcsProfilesJson();
   for (const { name: accountName, projectsDir } of ccsAccounts) {
+    const savedMeta = ccsProfilesSaved[accountName] || {};
+    const profileObj = {
+      id: accountName,
+      displayName: savedMeta.displayName ?? accountName,
+      color: savedMeta.color ?? null,
+    };
+
     try {
       await fs.access(projectsDir);
       const ccsEntries = await fs.readdir(projectsDir, { withFileTypes: true });
@@ -689,11 +707,12 @@ async function getProjects(progressCallback = null) {
         const project = {
           name: entry.name,
           path: actualProjectDir,
-          displayName: `[${accountName}] ${autoDisplayName}`,
+          displayName: autoDisplayName,
           fullPath: actualProjectDir,
           isCustomName: false,
           ccsAccount: accountName,
           ccsProjectsDir: projectsDir,
+          profile: profileObj,
           sessions: [],
           geminiSessions: [],
           sessionMeta: { hasMore: false, total: 0 },

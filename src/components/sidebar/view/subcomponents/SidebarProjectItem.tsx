@@ -133,7 +133,7 @@ export default function SidebarProjectItem({
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div
                   className={cn(
-                    'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
+                    'relative w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
                     isExpanded ? 'bg-primary/10' : 'bg-muted',
                   )}
                 >
@@ -141,6 +141,13 @@ export default function SidebarProjectItem({
                     <FolderOpen className="h-4 w-4 text-primary" />
                   ) : (
                     <Folder className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  {project.profile?.color && (
+                    <div
+                      className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-1 ring-background"
+                      style={{ backgroundColor: project.profile.color }}
+                      title={project.profile.displayName}
+                    />
                   )}
                 </div>
 
@@ -281,11 +288,20 @@ export default function SidebarProjectItem({
           onClick={selectAndToggleProject}
         >
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            {isExpanded ? (
-              <FolderOpen className="h-4 w-4 flex-shrink-0 text-primary" />
-            ) : (
-              <Folder className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-            )}
+            <div className="relative flex-shrink-0">
+              {isExpanded ? (
+                <FolderOpen className="h-4 w-4 text-primary" />
+              ) : (
+                <Folder className="h-4 w-4 text-muted-foreground" />
+              )}
+              {project.profile?.color && (
+                <div
+                  className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-1 ring-background"
+                  style={{ backgroundColor: project.profile.color }}
+                  title={project.profile.displayName}
+                />
+              )}
+            </div>
             <div className="min-w-0 flex-1 text-left">
               {isEditing ? (
                 <div className="space-y-1">
