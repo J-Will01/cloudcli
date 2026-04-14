@@ -914,9 +914,9 @@ async function getSessions(projectName, limit = 5, offset = 0, baseDir = null, p
     const paginatedSessions = visibleSessions.slice(offset, offset + limit);
     const hasMore = offset + limit < total;
 
-    // CCS PATCH: tag each session with the source account profile when provided
+    // CCS PATCH: tag each session with the source account profile + projectsDir when provided
     const taggedSessions = profile
-      ? paginatedSessions.map(s => ({ ...s, profile }))
+      ? paginatedSessions.map(s => ({ ...s, profile, ccsProjectsDir: baseDir }))
       : paginatedSessions;
 
     return {
@@ -1143,8 +1143,11 @@ async function parseAgentTools(filePath) {
 }
 
 // Get messages for a specific session with pagination support
-async function getSessionMessages(projectName, sessionId, limit = null, offset = 0) {
-  const projectDir = path.join(os.homedir(), '.claude', 'projects', projectName);
+async function getSessionMessages(projectName, sessionId, limit = null, offset = 0, baseDir = null) {
+  // CCS PATCH: support custom base directory for CCS account project directories
+  const projectDir = baseDir
+    ? path.join(baseDir, projectName)
+    : path.join(os.homedir(), '.claude', 'projects', projectName);
 
   try {
     const files = await fs.readdir(projectDir);

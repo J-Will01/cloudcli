@@ -136,7 +136,7 @@ export default function SidebarProjectItem({
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div
                   className={cn(
-                    'relative w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
+                    'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
                     isExpanded ? 'bg-primary/10' : 'bg-muted',
                   )}
                 >
@@ -144,18 +144,6 @@ export default function SidebarProjectItem({
                     <FolderOpen className="h-4 w-4 text-primary" />
                   ) : (
                     <Folder className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  {ccsProfiles.length > 0 && (
-                    <div className="absolute -bottom-0.5 -right-0.5 flex gap-0.5">
-                      {ccsProfiles.slice(0, 3).map(p => (
-                        <div
-                          key={p.id}
-                          className="h-2.5 w-2.5 rounded-full ring-1 ring-background"
-                          style={{ backgroundColor: p.color! }}
-                          title={p.displayName}
-                        />
-                      ))}
-                    </div>
                   )}
                 </div>
 
@@ -296,23 +284,11 @@ export default function SidebarProjectItem({
           onClick={selectAndToggleProject}
         >
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="relative flex-shrink-0">
+            <div className="flex-shrink-0">
               {isExpanded ? (
                 <FolderOpen className="h-4 w-4 text-primary" />
               ) : (
                 <Folder className="h-4 w-4 text-muted-foreground" />
-              )}
-              {ccsProfiles.length > 0 && (
-                <div className="absolute -bottom-0.5 -right-0.5 flex gap-0.5">
-                  {ccsProfiles.slice(0, 3).map(p => (
-                    <div
-                      key={p.id}
-                      className="h-2 w-2 rounded-full ring-1 ring-background"
-                      style={{ backgroundColor: p.color! }}
-                      title={p.displayName}
-                    />
-                  ))}
-                </div>
               )}
             </div>
             <div className="min-w-0 flex-1 text-left">

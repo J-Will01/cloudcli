@@ -172,6 +172,7 @@ export function useSessionStore() {
       provider?: SessionProvider;
       projectName?: string;
       projectPath?: string;
+      baseDir?: string | null;
       limit?: number | null;
       offset?: number;
     } = {},
@@ -185,6 +186,7 @@ export function useSessionStore() {
       if (opts.provider) params.append('provider', opts.provider);
       if (opts.projectName) params.append('projectName', opts.projectName);
       if (opts.projectPath) params.append('projectPath', opts.projectPath);
+      if (opts.baseDir) params.append('baseDir', opts.baseDir); // CCS PATCH
       if (opts.limit !== null && opts.limit !== undefined) {
         params.append('limit', String(opts.limit));
         params.append('offset', String(opts.offset ?? 0));
@@ -231,6 +233,7 @@ export function useSessionStore() {
       provider?: SessionProvider;
       projectName?: string;
       projectPath?: string;
+      baseDir?: string | null;
       limit?: number;
     } = {},
   ) => {
@@ -241,6 +244,7 @@ export function useSessionStore() {
     if (opts.provider) params.append('provider', opts.provider);
     if (opts.projectName) params.append('projectName', opts.projectName);
     if (opts.projectPath) params.append('projectPath', opts.projectPath);
+    if (opts.baseDir) params.append('baseDir', opts.baseDir); // CCS PATCH
     const limit = opts.limit ?? 20;
     params.append('limit', String(limit));
     params.append('offset', String(slot.offset));
@@ -306,6 +310,7 @@ export function useSessionStore() {
       provider?: SessionProvider;
       projectName?: string;
       projectPath?: string;
+      baseDir?: string | null;
     } = {},
   ) => {
     const slot = getSlot(sessionId);
@@ -314,6 +319,7 @@ export function useSessionStore() {
       if (opts.provider) params.append('provider', opts.provider);
       if (opts.projectName) params.append('projectName', opts.projectName);
       if (opts.projectPath) params.append('projectPath', opts.projectPath);
+      if (opts.baseDir) params.append('baseDir', opts.baseDir); // CCS PATCH
 
       const qs = params.toString();
       const url = `/api/sessions/${encodeURIComponent(sessionId)}/messages${qs ? `?${qs}` : ''}`;

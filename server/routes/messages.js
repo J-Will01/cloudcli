@@ -32,6 +32,7 @@ router.get('/:sessionId/messages', async (req, res) => {
     const provider = req.query.provider || 'claude';
     const projectName = req.query.projectName || '';
     const projectPath = req.query.projectPath || '';
+    const baseDir = req.query.baseDir || null; // CCS PATCH: account-specific project directory
     const limitParam = req.query.limit;
     const limit = limitParam !== undefined && limitParam !== null && limitParam !== ''
       ? parseInt(limitParam, 10)
@@ -47,6 +48,7 @@ router.get('/:sessionId/messages', async (req, res) => {
     const result = await adapter.fetchHistory(sessionId, {
       projectName,
       projectPath,
+      baseDir,
       limit,
       offset,
     });

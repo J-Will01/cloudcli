@@ -103,6 +103,8 @@ export function useChatSessionState({
   const [isLoading, setIsLoading] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(selectedSession?.id || null);
   const [isLoadingSessionMessages, setIsLoadingSessionMessages] = useState(false);
+  // CCS PATCH: extract account-specific project directory from the session object (if present)
+  const sessionBaseDir = (selectedSession as Record<string, unknown> | null)?.ccsProjectsDir as string | undefined;
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [totalMessages, setTotalMessages] = useState(0);
@@ -243,6 +245,7 @@ export function useChatSessionState({
           provider: sessionProvider as SessionProvider,
           projectName: selectedProject.name,
           projectPath: selectedProject.fullPath || selectedProject.path || '',
+          baseDir: sessionBaseDir,
           limit: MESSAGES_PER_PAGE,
         });
         if (!slot || slot.serverMessages.length === 0) return false;
@@ -377,6 +380,7 @@ export function useChatSessionState({
       provider: (selectedSession.__provider || provider) as SessionProvider,
       projectName: selectedProject.name,
       projectPath: selectedProject.fullPath || selectedProject.path || '',
+      baseDir: sessionBaseDir,
       limit: MESSAGES_PER_PAGE,
       offset: 0,
     }).then(slot => {
@@ -413,6 +417,7 @@ export function useChatSessionState({
             provider: (selectedSession.__provider || provider) as SessionProvider,
             projectName: selectedProject.name,
             projectPath: selectedProject.fullPath || selectedProject.path || '',
+            baseDir: sessionBaseDir,
           });
 
           if (Boolean(autoScrollToBottom) && isNearBottom()) {
@@ -471,6 +476,7 @@ export function useChatSessionState({
               provider: sessionProvider as SessionProvider,
               projectName: selectedProject.name,
               projectPath: selectedProject.fullPath || selectedProject.path || '',
+              baseDir: sessionBaseDir,
               limit: null,
               offset: 0,
             });
@@ -658,6 +664,7 @@ export function useChatSessionState({
         provider: sessionProvider as SessionProvider,
         projectName: selectedProject.name,
         projectPath: selectedProject.fullPath || selectedProject.path || '',
+        baseDir: sessionBaseDir,
         limit: null,
         offset: 0,
       });
