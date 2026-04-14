@@ -142,7 +142,7 @@ export default function SidebarSessionItem({
           onClick={() => onSessionSelect(session, project.name)}
         >
           <div className="flex w-full min-w-0 items-start gap-2">
-            <div className="relative mt-0.5 flex-shrink-0">
+            <div className="relative mt-0.5 h-3 w-3 flex-shrink-0">
               <SessionProviderLogo provider={session.__provider} className="h-3 w-3" />
               {project.profile?.color && (
                 <div

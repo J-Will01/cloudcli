@@ -111,7 +111,8 @@ function updateCcsProjectMap(projects) {
   for (const p of projects) {
     if (p.ccsAccount) {
       ccsProjectMap.set(p.name, { accountName: p.ccsAccount, projectsDir: p.ccsProjectsDir });
-      if (p.fullPath) ccsCwdMap.set(p.fullPath, p.ccsAccount);
+      // CCS PATCH: normalize with path.resolve() so trailing-slash / symlink variants still match
+      if (p.fullPath) ccsCwdMap.set(path.resolve(p.fullPath), p.ccsAccount);
     }
   }
 }
@@ -1559,8 +1560,9 @@ function handleChatConnection(ws, request) {
                 console.log('🔄 Session:', data.options?.sessionId ? 'Resume' : 'New');
 
                 // CCS PATCH: resolve which CCS account owns this project's cwd
+                // path.resolve() normalises trailing slashes / symlink variants to match stored keys
                 const resolvedCcsAccount = data.options?.cwd
-                    ? ccsCwdMap.get(data.options.cwd)
+                    ? ccsCwdMap.get(path.resolve(data.options.cwd))
                     : undefined;
                 const claudeOptions = resolvedCcsAccount
                     ? { ...data.options, ccsAccount: resolvedCcsAccount }
