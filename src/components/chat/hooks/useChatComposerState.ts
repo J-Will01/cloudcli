@@ -652,6 +652,12 @@ export function useChatComposerState({
             model: claudeModel,
             sessionSummary,
             images: uploadedImages,
+            // CCS PATCH: tell the server which account this session belongs to.
+            // null means "default account — do not set CLAUDE_CONFIG_DIR".
+            // Only set for resumed sessions (profile comes from the session object).
+            ccsAccount: effectiveSessionId
+              ? ((selectedSession as Record<string, unknown>)?.profile as Record<string, unknown> | undefined)?.id ?? null
+              : undefined,
           },
         });
       }

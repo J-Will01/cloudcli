@@ -1592,11 +1592,20 @@ function handleChatConnection(ws, request) {
                 console.log('📁 Project:', data.options?.projectPath || 'Unknown');
                 console.log('🔄 Session:', data.options?.sessionId ? 'Resume' : 'New');
 
-                // CCS PATCH: resolve which CCS account owns this project's cwd
-                // path.resolve() normalises trailing slashes / symlink variants to match stored keys
-                const resolvedCcsAccount = data.options?.cwd
-                    ? ccsCwdMap.get(path.resolve(data.options.cwd))
-                    : undefined;
+                // CCS PATCH: resolve which CCS account to use for this session.
+                // Priority order:
+                //   1. ccsAccount from the frontend (set on resumed sessions via session.profile.id)
+                //      — null means "default account, do NOT set CLAUDE_CONFIG_DIR"
+                //      — undefined means "not specified by frontend, fall through"
+                //   2. ccsCwdMap lookup — only for brand-new sessions (no sessionId) so we never
+                //      accidentally route a default-account session through a CCS account dir
+                const frontendCcsAccount = data.options?.ccsAccount; // null | string | undefined
+                const isNewSession = !data.options?.sessionId;
+                const resolvedCcsAccount = frontendCcsAccount !== undefined
+                    ? (frontendCcsAccount || undefined) // convert null → undefined (no account)
+                    : isNewSession && data.options?.cwd
+                        ? ccsCwdMap.get(path.resolve(data.options.cwd))
+                        : undefined;
                 const claudeOptions = resolvedCcsAccount
                     ? { ...data.options, ccsAccount: resolvedCcsAccount }
                     : data.options;
