@@ -12,6 +12,7 @@ import type {
   TouchEvent,
 } from 'react';
 import type { PendingPermissionRequest, PermissionMode, Provider } from '../../types/types';
+import type { CcsProfile } from '../../../../types/app';
 import CommandMenu from './CommandMenu';
 import ClaudeStatus from './ClaudeStatus';
 import ImageAttachment from './ImageAttachment';
@@ -90,6 +91,11 @@ interface ChatComposerProps {
   placeholder: string;
   isTextareaExpanded: boolean;
   sendByCtrlEnter?: boolean;
+  // CCS PATCH
+  ccsAccounts: CcsProfile[];
+  selectedCcsAccount: string | null;
+  onSelectCcsAccount: (accountId: string | null) => void;
+  isExistingSession: boolean;
 }
 
 export default function ChatComposer({
@@ -146,6 +152,10 @@ export default function ChatComposer({
   placeholder,
   isTextareaExpanded,
   sendByCtrlEnter,
+  ccsAccounts,
+  selectedCcsAccount,
+  onSelectCcsAccount,
+  isExistingSession,
 }: ChatComposerProps) {
   const { t } = useTranslation('chat');
   const textareaRect = textareaRef.current?.getBoundingClientRect();
@@ -199,6 +209,10 @@ export default function ChatComposer({
           isUserScrolledUp={isUserScrolledUp}
           hasMessages={hasMessages}
           onScrollToBottom={onScrollToBottom}
+          ccsAccounts={ccsAccounts}
+          selectedCcsAccount={selectedCcsAccount}
+          onSelectCcsAccount={onSelectCcsAccount}
+          isExistingSession={isExistingSession}
         />}
       </div>
 

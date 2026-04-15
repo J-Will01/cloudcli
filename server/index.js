@@ -563,6 +563,41 @@ app.post('/api/system/update', authenticateToken, async (req, res) => {
     }
 });
 
+// CCS PATCH: Return available CCS accounts with profile metadata
+app.get('/api/ccs/accounts', authenticateToken, async (req, res) => {
+    try {
+        const instancesDir = path.join(os.homedir(), '.ccs', 'instances');
+        let accountNames = [];
+        try {
+            const entries = await fsPromises.readdir(instancesDir, { withFileTypes: true });
+            accountNames = entries.filter(e => e.isDirectory() && !e.name.startsWith('.')).map(e => e.name);
+        } catch {
+            // no CCS instances directory
+        }
+
+        let savedProfiles = {};
+        try {
+            const p = path.join(os.homedir(), '.cloudcli', 'ccs-profiles.json');
+            savedProfiles = JSON.parse(await fsPromises.readFile(p, 'utf8'));
+        } catch {
+            // no saved profiles
+        }
+
+        const accounts = accountNames.map(name => {
+            const meta = savedProfiles[name] || {};
+            return {
+                id: name,
+                displayName: meta.displayName ?? name,
+                color: meta.color ?? null,
+            };
+        });
+
+        res.json(accounts);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/projects', authenticateToken, async (req, res) => {
     try {
         const projects = await getProjects(broadcastProgress);

@@ -1,8 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PermissionMode, Provider } from '../../types/types';
+import type { CcsProfile } from '../../../../types/app';
 import ThinkingModeSelector from './ThinkingModeSelector';
 import TokenUsagePie from './TokenUsagePie';
+import CcsAccountSelector from './CcsAccountSelector';
 
 interface ChatInputControlsProps {
   permissionMode: PermissionMode | string;
@@ -18,6 +20,11 @@ interface ChatInputControlsProps {
   isUserScrolledUp: boolean;
   hasMessages: boolean;
   onScrollToBottom: () => void;
+  // CCS PATCH
+  ccsAccounts: CcsProfile[];
+  selectedCcsAccount: string | null;
+  onSelectCcsAccount: (accountId: string | null) => void;
+  isExistingSession: boolean;
 }
 
 export default function ChatInputControls({
@@ -34,6 +41,10 @@ export default function ChatInputControls({
   isUserScrolledUp,
   hasMessages,
   onScrollToBottom,
+  ccsAccounts,
+  selectedCcsAccount,
+  onSelectCcsAccount,
+  isExistingSession,
 }: ChatInputControlsProps) {
   const { t } = useTranslation('chat');
 
@@ -76,6 +87,15 @@ export default function ChatInputControls({
 
       {provider === 'claude' && (
         <ThinkingModeSelector selectedMode={thinkingMode} onModeChange={setThinkingMode} onClose={() => {}} className="" />
+      )}
+
+      {/* CCS PATCH: account picker — only for new conversations */}
+      {provider === 'claude' && !isExistingSession && (
+        <CcsAccountSelector
+          accounts={ccsAccounts}
+          selectedAccountId={selectedCcsAccount}
+          onSelect={onSelectCcsAccount}
+        />
       )}
 
       <TokenUsagePie used={tokenBudget?.used || 0} total={tokenBudget?.total || parseInt(import.meta.env.VITE_CONTEXT_WINDOW) || 160000} />

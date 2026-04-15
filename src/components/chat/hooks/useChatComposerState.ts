@@ -60,6 +60,7 @@ interface UseChatComposerStateArgs {
   setClaudeStatus: (status: { text: string; tokens: number; can_interrupt: boolean } | null) => void;
   setIsUserScrolledUp: (isScrolledUp: boolean) => void;
   setPendingPermissionRequests: Dispatch<SetStateAction<PendingPermissionRequest[]>>;
+  selectedCcsAccount?: string | null;
 }
 
 interface MentionableFile {
@@ -132,6 +133,7 @@ export function useChatComposerState({
   setClaudeStatus,
   setIsUserScrolledUp,
   setPendingPermissionRequests,
+  selectedCcsAccount = null,
 }: UseChatComposerStateArgs) {
   const [input, setInput] = useState(() => {
     if (typeof window !== 'undefined' && selectedProject) {
@@ -653,11 +655,11 @@ export function useChatComposerState({
             sessionSummary,
             images: uploadedImages,
             // CCS PATCH: tell the server which account this session belongs to.
-            // null means "default account — do not set CLAUDE_CONFIG_DIR".
-            // Only set for resumed sessions (profile comes from the session object).
+            // For resumed sessions: use session's own profile id (null = default).
+            // For new sessions: use the picker selection (null = default, undefined falls back to ccsCwdMap on server).
             ccsAccount: effectiveSessionId
               ? ((selectedSession as Record<string, unknown>)?.profile as Record<string, unknown> | undefined)?.id ?? null
-              : undefined,
+              : selectedCcsAccount,
           },
         });
       }
@@ -695,6 +697,7 @@ export function useChatComposerState({
       resetCommandMenuState,
       scrollToBottom,
       selectedProject,
+      selectedCcsAccount,
       sendMessage,
       setCanAbortSession,
       addMessage,

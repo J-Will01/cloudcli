@@ -75,6 +75,9 @@ function ChatInterface({
     pendingPermissionRequests,
     setPendingPermissionRequests,
     cyclePermissionMode,
+    ccsAccounts,
+    selectedCcsAccount,
+    selectCcsAccount,
   } = useChatProviderState({
     selectedSession,
   });
@@ -200,6 +203,7 @@ function ChatInterface({
     setClaudeStatus,
     setIsUserScrolledUp,
     setPendingPermissionRequests,
+    selectedCcsAccount,
   });
 
   // On WebSocket reconnect, re-fetch the current session's messages from the server
@@ -406,6 +410,10 @@ function ChatInterface({
           })}
           isTextareaExpanded={isTextareaExpanded}
           sendByCtrlEnter={sendByCtrlEnter}
+          ccsAccounts={ccsAccounts}
+          selectedCcsAccount={selectedCcsAccount}
+          onSelectCcsAccount={selectCcsAccount}
+          isExistingSession={Boolean(selectedSession?.id)}
         />
       </div>
 

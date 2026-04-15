@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { authenticatedFetch } from '../../../utils/api';
 import { CLAUDE_MODELS, CODEX_MODELS, CURSOR_MODELS, GEMINI_MODELS } from '../../../../shared/modelConstants';
 import type { PendingPermissionRequest, PermissionMode } from '../types/types';
-import type { ProjectSession, SessionProvider } from '../../../types/app';
+import type { CcsProfile, ProjectSession, SessionProvider } from '../../../types/app';
 
 interface UseChatProviderStateArgs {
   selectedSession: ProjectSession | null;
@@ -26,6 +26,28 @@ export function useChatProviderState({ selectedSession }: UseChatProviderStateAr
   const [geminiModel, setGeminiModel] = useState<string>(() => {
     return localStorage.getItem('gemini-model') || GEMINI_MODELS.DEFAULT;
   });
+
+  // CCS PATCH: account to use for new conversations (null = default ~/.claude/)
+  const [selectedCcsAccount, setSelectedCcsAccount] = useState<string | null>(() => {
+    return localStorage.getItem('ccs-selected-account') ?? null;
+  });
+  const [ccsAccounts, setCcsAccounts] = useState<CcsProfile[]>([]);
+
+  useEffect(() => {
+    authenticatedFetch('/api/ccs/accounts')
+      .then(r => r.json())
+      .then((data: CcsProfile[]) => setCcsAccounts(data))
+      .catch(() => {});
+  }, []);
+
+  const selectCcsAccount = useCallback((accountId: string | null) => {
+    setSelectedCcsAccount(accountId);
+    if (accountId === null) {
+      localStorage.removeItem('ccs-selected-account');
+    } else {
+      localStorage.setItem('ccs-selected-account', accountId);
+    }
+  }, []);
 
   const lastProviderRef = useRef(provider);
 
@@ -115,5 +137,8 @@ export function useChatProviderState({ selectedSession }: UseChatProviderStateAr
     pendingPermissionRequests,
     setPendingPermissionRequests,
     cyclePermissionMode,
+    ccsAccounts,
+    selectedCcsAccount,
+    selectCcsAccount,
   };
 }
