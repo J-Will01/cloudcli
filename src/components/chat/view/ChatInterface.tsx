@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useTasksSettings } from '../../../contexts/TasksSettingsContext';
 import { QuickSettingsPanel } from '../../quick-settings-panel';
 import type { ChatInterfaceProps, Provider  } from '../types/types';
-import type { SessionProvider } from '../../../types/app';
+import type { CcsProfile, SessionProvider } from '../../../types/app';
 import { useChatProviderState } from '../hooks/useChatProviderState';
 import { useChatSessionState } from '../hooks/useChatSessionState';
 import { useChatRealtimeHandlers } from '../hooks/useChatRealtimeHandlers';
@@ -271,6 +271,19 @@ function ChatInterface({
     };
   }, [resetStreamingState]);
 
+  // CCS PATCH: update document.title to include session summary + CCS account name
+  useEffect(() => {
+    if (!selectedSession) return;
+    const sessionLabel = selectedSession.summary?.trim() || selectedSession.id;
+    const sessionProfile = (selectedSession as Record<string, unknown>).profile as CcsProfile | undefined;
+    const accountLabel = sessionProfile?.displayName ? ` [${sessionProfile.displayName}]` : '';
+    const projectLabel = selectedProject?.displayName ? ` — ${selectedProject.displayName}` : '';
+    document.title = `${sessionLabel}${accountLabel}${projectLabel} - CloudCLI UI`;
+    return () => {
+      // Let the sidebar's effect reclaim the title when session is deselected
+    };
+  }, [selectedSession, selectedProject]);
+
   if (!selectedProject) {
     const selectedProviderLabel =
       provider === 'cursor'
@@ -295,9 +308,27 @@ function ChatInterface({
     );
   }
 
+  // CCS PATCH: resolve the profile for the active session
+  const activeSessionProfile = selectedSession
+    ? ((selectedSession as Record<string, unknown>).profile as CcsProfile | undefined)
+    : null;
+
   return (
     <>
       <div className="flex h-full flex-col">
+        {/* CCS PATCH: thin account badge strip shown only for CCS-account sessions */}
+        {activeSessionProfile?.color && (
+          <div className="flex flex-shrink-0 items-center gap-2 border-b border-border/40 bg-background/60 px-3 py-1.5 backdrop-blur-sm">
+            <span
+              className="h-2 w-2 flex-shrink-0 rounded-full"
+              style={{ backgroundColor: activeSessionProfile.color }}
+            />
+            <span className="text-xs font-medium text-muted-foreground">
+              {activeSessionProfile.displayName}
+            </span>
+          </div>
+        )}
+
         <ChatMessagesPane
           scrollContainerRef={scrollContainerRef}
           onWheel={handleScroll}

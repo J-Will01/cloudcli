@@ -96,9 +96,6 @@ export default function SidebarProjectItem({
   const isSelected = selectedProject?.name === project.name;
   const isEditing = editingProject === project.name;
   const hasMoreSessions = project.sessionMeta?.hasMore === true;
-  // CCS: collect unique profile colors to show on the folder icon
-  // Prefer ccsAccounts (merged multi-account) over legacy single profile field
-  const ccsProfiles = project.ccsAccounts?.map(a => a.profile).filter(p => p?.color) ?? (project.profile?.color ? [project.profile] : []);
   const sessionCountDisplay = getSessionCountDisplay(sessions, hasMoreSessions);
   const sessionCountLabel = `${sessionCountDisplay} session${sessions.length === 1 ? '' : 's'}`;
   const taskStatus = getTaskIndicatorStatus(project, mcpServerStatus);

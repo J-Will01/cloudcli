@@ -29,7 +29,7 @@ export default function CcsAccountSelector({ accounts, selectedAccountId, onSele
     const triggerRect = trigger.getBoundingClientRect();
     const viewportPadding = window.innerWidth < 640 ? 12 : 16;
     const spacing = 8;
-    const width = Math.min(window.innerWidth - viewportPadding * 2, window.innerWidth < 640 ? 320 : 220);
+    const width = Math.min(window.innerWidth - viewportPadding * 2, 220);
     let left = triggerRect.left + triggerRect.width / 2 - width / 2;
     left = Math.max(viewportPadding, Math.min(left, window.innerWidth - width - viewportPadding));
 
@@ -87,7 +87,7 @@ export default function CcsAccountSelector({ accounts, selectedAccountId, onSele
         ref={triggerRef}
         type="button"
         onClick={() => { if (isOpen) { closeDropdown(); return; } setIsOpen(true); }}
-        className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
+        className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 sm:h-10 sm:w-10 ${
           selectedAccount
             ? 'bg-accent/80 hover:bg-accent'
             : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'
@@ -97,13 +97,13 @@ export default function CcsAccountSelector({ accounts, selectedAccountId, onSele
         aria-expanded={isOpen}
       >
         {/* Profile color dot */}
-        <div className="relative flex h-5 w-5 items-center justify-center">
-          <svg className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <div className="relative flex h-4 w-4 items-center justify-center sm:h-5 sm:w-5">
+          <svg className="h-4 w-4 text-muted-foreground sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
           </svg>
           {dotColor && (
             <span
-              className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background"
+              className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background sm:h-2.5 sm:w-2.5 sm:border-2"
               style={{ backgroundColor: dotColor }}
             />
           )}
